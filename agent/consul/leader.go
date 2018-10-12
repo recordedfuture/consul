@@ -101,6 +101,7 @@ func (s *Server) monitorLeadership() {
 					}
 				}
 
+				s.logger.Printf("[DEBUG] acl: transitioning out of legacy ACL mode")
 				s.useNewACLs.Set(true)
 				s.updateACLAdvertisement()
 				// setting this to nil ensures that we will never hit this case again
@@ -501,22 +502,18 @@ func (s *Server) initializeACLs(upgrade bool) error {
 		}
 		s.startACLUpgrade()
 	} else {
-		if s.IsACLReplicationEnabled() {
-			// set replication to enabled and configure the source datacenter etc.
-			s.initReplicationStatus()
-
-			if s.UseLegacyACLs() && !upgrade {
+		if s.UseLegacyACLs() && !upgrade {
+			if s.IsACLReplicationEnabled() {
 				s.startLegacyACLReplication()
-			} else {
-				if upgrade {
-					s.stopACLReplication()
-				}
-
-				s.startACLReplication()
 			}
-		} else {
+		}
+
+		if upgrade {
 			s.stopACLReplication()
 		}
+
+		// ACL replication is now mandatory
+		s.startACLReplication()
 	}
 
 	// launch the upgrade go routine to generate accessors for everything
@@ -692,7 +689,9 @@ func (s *Server) startACLReplication() {
 		}
 	}(s.aclReplicationCh)
 
-	if s.config.ACLReplicateTokens {
+	s.logger.Printf("[INFO] acl: started ACL Policy replication")
+
+	if s.config.ACLTokenReplication {
 		replicationType = structs.ACLReplicateTokens
 
 		go func(stopCh <-chan struct{}) {
@@ -719,6 +718,8 @@ func (s *Server) startACLReplication() {
 				}
 			}
 		}(s.aclReplicationCh)
+
+		s.logger.Printf("[INFO] acl: started ACL Token replication")
 	}
 
 	s.updateACLReplicationStatusRunning(replicationType)

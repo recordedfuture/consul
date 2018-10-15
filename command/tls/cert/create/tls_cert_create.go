@@ -77,32 +77,29 @@ func (c *cmd) Run(args []string) int {
 	var DNSNames []string
 	var IPAddresses []net.IP
 	var extKeyUsage []x509.ExtKeyUsage
-	var pkFileName, certFileName string
 
 	if c.server {
 		DNSNames = []string{fmt.Sprintf("server.%s.%s", c.dc, c.domain), "localhost"}
 		IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
-		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
-		certFileName = fmt.Sprintf("%s-server-%s", prefix, c.dc)
-		pkFileName = fmt.Sprintf("%s-server-%s-key", prefix, c.dc)
+		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
+		prefix = fmt.Sprintf("%s-server-%s", prefix, c.dc)
 	} else if c.client {
 		DNSNames = []string{"localhost"}
 		IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
-		certFileName = fmt.Sprintf("%s-client", prefix)
-		pkFileName = fmt.Sprintf("%s-client-key", prefix)
+		prefix = fmt.Sprintf("%s-client", prefix)
 	} else if c.cli {
-		certFileName = fmt.Sprintf("%s-cli", prefix)
-		pkFileName = fmt.Sprintf("%s-cli-key", prefix)
+		prefix = fmt.Sprintf("%s-cli", prefix)
 	} else {
 		c.UI.Error("Neither client, cli nor server - should not happen")
 		return 1
 	}
 
+	var pkFileName, certFileName string
 	max := 10000
 	for i := 0; i <= max; i++ {
-		tmpCert := fmt.Sprintf("%s-%d.pem", certFileName, i)
-		tmpPk := fmt.Sprintf("%s-%d.pem", pkFileName, i)
+		tmpCert := fmt.Sprintf("%s-%d.pem", prefix, i)
+		tmpPk := fmt.Sprintf("%s-%d-key.pem", prefix, i)
 		if tls.FileDoesNotExist(tmpCert) && tls.FileDoesNotExist(tmpPk) {
 			certFileName = tmpCert
 			pkFileName = tmpPk
@@ -124,6 +121,8 @@ func (c *cmd) Run(args []string) int {
 		c.UI.Error(fmt.Sprintf("Error reading CA key: %s", err))
 		return 1
 	}
+
+	c.UI.Info("==> Using " + c.ca + " and " + c.key)
 
 	signer, err := connect.ParseSigner(string(key))
 	if err != nil {
@@ -149,7 +148,7 @@ func (c *cmd) Run(args []string) int {
 		return 1
 	}
 	certFile.WriteString(pub)
-	c.UI.Output("==> saved " + certFileName)
+	c.UI.Output("==> Saved " + certFileName)
 
 	pkFile, err := os.Create(pkFileName)
 	if err != nil {
@@ -157,7 +156,7 @@ func (c *cmd) Run(args []string) int {
 		return 1
 	}
 	pkFile.WriteString(priv)
-	c.UI.Output("==> saved " + pkFileName)
+	c.UI.Output("==> Saved " + pkFileName)
 
 	return 0
 }
@@ -176,17 +175,20 @@ Usage: consul tls cert create [options] [filename-prefix]
 
 	Create a new certificate
 
-	$ consul tls cert -server
-	==> saved consul-server-dc1.pem
-	==> saved consul-server-dc1-key.pem
-	$ consul tls cert -server -dc dc2
-	==> saved consul-server-dc2.pem
-	==> saved consul-server-dc2-key.pem
+	$ consul tls cert create -server
+	==> Using consul-ca.pem and consul-ca-key.pem
+	==> Saved consul-server-dc1-0.pem
+	==> Saved consul-server-dc1-0-key.pem
 	$ consul tls cert -client
-	==> saved consul-client.pem
-	==> saved consul-client-key.pem
-	$ consul tls cert -server mycert
-	==> saved mycert-server-dc1.pem
-	==> saved mycert-server-dc1-key.pem
-	$ consul tls cert -server -ca-file consul-ca.pem -ca-key-file consul-ca-key.pem
+	==> Using consul-ca.pem and consul-ca-key.pem
+	==> Saved consul-client-0.pem
+	==> Saved consul-client-0-key.pem
+	$ consul tls cert -cli my
+	==> Using consul-ca.pem and consul-ca-key.pem
+	==> Saved my-cli-0.pem
+	==> Saved my-cli-0-key.pem
+	$ consul tls cert -server -ca-file my-ca.pem -ca-key-file my-ca-key.pem my
+	==> Using my-ca.pem and my-ca-key.pem
+	==> Saved my-server-0.pem
+	==> Saved my-server-0-key.pem
 `

@@ -48,8 +48,8 @@ use consul's builtin TLS helpers:
 
 ```shell
 $ consul tls ca create
-==> saved consul-ca.pem
-==> saved consul-ca-key.pem
+==> Saved consul-ca.pem
+==> Saved consul-ca-key.pem
 ```
 
 The CA key (`consul-ca-key.pem`) will be used to sign certificates for Consul
@@ -59,76 +59,51 @@ distributed to every node that requires access.
 
 ### Step 2: Create Server Certificates
 
-Once you have a CA certificate and key you can generate and sign the
-certificates Consul will use directly. In order to authenticate Consul 
-servers, they are provided with a special certificate - one that 
-contains `server.dc1.consul` in the `Subject Alternative Name`. If you 
-enable `verify_server_hostname`, only agents that can provide such 
-certificate are allowed to boot as a server. An attacker could otherwise 
-compromise a Consul agent and restart the agent as a server in order to 
-get access to all the data in your cluster! This is why server certificates 
-are special, and only servers should have them provisioned.
-
-Create a server certificate for datacenter `dc1`, domain `consul` and assuming 
-you have `consul-ca.pem` and `consul-ca-key.pem` in the same folder:
+Create a server certificate for datacenter `dc1` and domain `consul`, if your
+datacenter or domain is different please use the appropriate flags:
 
 ```shell
 $ consul tls cert create -server
-==> saved consul-server-dc1.pem
-==> saved consul-server-dc1-key.pem
+==> Using consul-ca.pem and consul-ca-key.pem
+==> Saved consul-server-dc1-0.pem
+==> Saved consul-server-dc1-0-key.pem
 ```
 
-Or if you happen to have another CA, datacenter and domain:
-
-```shell
-$ consul tls cert create -server -dc mydc -domain mydomain -ca-file my-ca.pem -key-file my-ca-key.pem
-==> saved consul-server-mydc.pem
-==> saved consul-server-mydc-key.pem
-```
+In order to authenticate Consul servers, server certificates are provided with a
+special certificate - one that contains `server.dc1.consul` in the `Subject
+Alternative Name`. If you enable `verify_server_hostname`, only agents that can
+provide such certificate are allowed to boot as a server. An attacker could
+otherwise compromise a Consul agent and restart the agent as a server in order
+to get access to all the data in your cluster! This is why server certificates
+are special, and only servers should have them provisioned.
 
 ### Step 2: Create Client Certificates
 
-Client certificates are also signed by your CA, but they do not have that 
-special `Subject Alternative Name` which means that if `verify_server_hostname`
-is enabled, they cannot start as a server.
-
-Create a client certificate assuming you have `consul-ca.pem` and `consul-ca-key.pem` 
-in the same folder:
+Create a client certificate:
 
 ```shell
 $ consul tls cert create -client
-==> saved consul-client.pem
-==> saved consul-client-key.pem
+==> Using consul-ca.pem and consul-ca-key.pem
+==> Saved consul-client-0.pem
+==> Saved consul-client-0-key.pem
 ```
 
-Or with your own CA:
-
-```shell
-$ consul tls cert create -client -ca-file my-ca.pem -key-file my-ca-key.pem
-==> saved consul-client.pem
-==> saved consul-client-key.pem
-```
+Client certificates are also signed by your CA, but they do not have that
+special `Subject Alternative Name` which means that if `verify_server_hostname`
+is enabled, they cannot start as a server.
 
 ### Step 3: Create CLI Certificates [Optional]
 
-If you enforce HTTPS you will need a certificate in order to use consul commands 
+If you enforce HTTPS you will need a certificate in order to use consul commands
 or curl to access the HTTPS API.
 
-Create a CLI certificate assuming you have `consul-ca.pem` and `consu-ca-key.pem` 
-in the same folder: 
+Create a CLI certificate:
 
 ```shell
 $ consul tls cert create -cli
-==> saved consul-cli.pem
-==> saved consul-cli-key.pem
-```
-
-Or with your own CA:
-
-```shell
-$ consul tls cert create -cli -ca-file my-ca.pem -key-file my-ca-key.pem
-==> saved consul-cli.pem
-==> saved consul-cli-key.pem
+==> Using consul-ca.pem and consul-ca-key.pem
+==> Saved consul-cli-0.pem
+==> Saved consul-cli-0-key.pem
 ```
 
 ### Note on SANs for Server and Client Certificates
@@ -144,28 +119,54 @@ You should now have the following files:
 
 * `consul-ca.pem` - CA public certificate.
 * `consul-ca-key.pem` - CA private key. Keep safe!
-* `consul-server-dc1.pem` - Consul server node public certificate for the `dc1` datacenter.
-* `consul-server-dc1-key.pem` - Consul server node private key for the `dc1` datacenter.
-* `consul-client.pem` - Consul client node public certificate.
-* `consul-client-key.pem` - Consul client node private key.
-* `consul-cli.pem` - Consul CLI certificate.
-* `consul-cli-key.pem` - Consul CLI private key.
+* `consul-server-dc1-0.pem` - Consul server node public certificate for the `dc1` datacenter.
+* `consul-server-dc1-0-key.pem` - Consul server node private key for the `dc1` datacenter.
+* `consul-client-0.pem` - Consul client node public certificate.
+* `consul-client-0-key.pem` - Consul client node private key.
+* `consul-cli-0.pem` - Consul CLI certificate.
+* `consul-cli-0-key.pem` - Consul CLI private key.
 
-Each Consul node should have the appropriate key (`-key.pem`) and certificate
-(`.pem`) file for its region and role. In addition each node needs the CA's
-public certificate (`consul-ca.pem`).
+Here is a config for a server:
+
+```json
+{
+  "verify_incoming": true,
+  "verify_outgoing": true,
+  "verify_server_hostname": true,
+  "ca_file": "consul-ca.pem",
+  "cert_file": "consul-server-dc1-0.pem",
+  "key_file": "consul-server-dc1-0-key.pem"
+}
+```
+
+And a config for a client:
+
+```json
+{
+  "verify_incoming": true,
+  "verify_outgoing": true,
+  "ca_file": "consul-ca.pem",
+  "cert_file": "consul-client-0.pem",
+  "key_file": "consul-client-0-key.pem"
+}
+```
+
+Now you need to copy the CA to every machine, the server certificate to the
+servers and the client certificates to the clients. The CA private key shouldn't
+be on any machine! It should be somewhere safe!
 
 ### HTTPS
 
-Please note you will need the keys for the CLI if you choose to disable
-HTTP (in which case running the command `consul members` will return an error).
-This is because the Consul CLI defaults to communicating via HTTP instead of
-HTTPS. We can configure the local Consul client to connect using TLS and specify
-our custom keys and certificates using the command line:
+Please note you will need the keys for the CLI if you choose to disable HTTP (in
+which case running the command `consul members` will return an error). This is
+because the Consul CLI defaults to communicating via HTTP instead of HTTPS. We
+can configure the local Consul client to connect using TLS and specify our
+custom keys and certificates using the command line:
 
 ```shell
-$ consul members -ca-file=consul-ca.pem -client-cert=consul-cli.pem -client-key=consul-cli-key.pem -http-addr="https://localhost:9090" 
+$ consul members -ca-file=consul-ca.pem -client-cert=consul-cli.pem -client-key=consul-cli-key.pem -http-addr="https://localhost:9090"
 ```
+
 (The command is assuming HTTPS is configured to use port 9090. To see how
 you can change this, visit the [Configuration](/docs/agent/options.html) page)
 

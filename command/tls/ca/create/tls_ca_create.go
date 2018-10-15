@@ -72,13 +72,13 @@ func (c *cmd) Run(args []string) int {
 		c.UI.Error(err.Error())
 	}
 	caFile.WriteString(ca)
-	c.UI.Output("==> saved " + certFileName)
+	c.UI.Output("==> Saved " + certFileName)
 	pkFile, err := os.Create(pkFileName)
 	if err != nil {
 		c.UI.Error(err.Error())
 	}
 	pkFile.WriteString(pk)
-	c.UI.Output("==> saved " + pkFileName)
+	c.UI.Output("==> Saved " + pkFileName)
 
 	return 0
 }
@@ -96,13 +96,13 @@ const help = `
 Usage: consul tls ca create [filename-prefix]
 
 	Create a new consul CA:
-	
+
 	$ consul tls ca create
 	==> saved consul-ca.pem
 	==> saved consul-ca-key.pem
 
 	Or save it with your own prefix:
-	
+
 	$ consul tls ca create my
 	==> saved my-ca.pem
 	==> saved my-ca-key.pem

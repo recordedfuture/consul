@@ -96,7 +96,12 @@ is enabled, they cannot start as a server.
 
 ## Configuring Agents
 
-By now you created the certificates you are going to need to enable TLS in your cluster. The next steps will demonstrate how to configure TLS. However take this with a grain of salt because actually turning on TLS might not be that straight forward depending on your setup. For example in a cluster that is being used in production you want to turn on TLS step by step to ensure there is no downtime like described [here][guide].
+By now you have created the certificates you need to enable TLS in your cluster.
+The next steps will demonstrate how to configure TLS. However take this with a
+grain of salt because turning on TLS might not be that straight forward
+depending on your setup. For example in a cluster that is being used in
+production you want to turn on TLS step by step to ensure there is no downtime
+like described [here][guide].
 
 ### Step 1: Setup Consul servers with certificates
 
@@ -223,7 +228,9 @@ HTTPS requests from other hosts.
 
 ## Summary
 
-When you completed this guide, your Consul cluster has TLS enabled and is protected against all sorts of attacks plus you made sure only your servers are able to start as a server! A good next step would be to read about [ACLs][acl]!
+When you completed this guide, your Consul cluster has TLS enabled and is
+protected against all sorts of attacks plus you made sure only your servers are
+able to start as a server! A good next step would be to read about [ACLs][acl]!
 
 [letsencrypt]: https://letsencrypt.org/
 [vault]: https://www.vaultproject.io/

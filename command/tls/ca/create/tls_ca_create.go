@@ -22,10 +22,12 @@ type cmd struct {
 	UI    cli.Ui
 	flags *flag.FlagSet
 	help  string
+	days  int
 }
 
 func (c *cmd) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
+	c.flags.IntVar(&c.days, "days", 1825, "Provide number of days the CA is valid for from now on, defaults to 5 years.")
 	c.help = flags.Usage(help, c.flags)
 }
 
@@ -63,7 +65,7 @@ func (c *cmd) Run(args []string) int {
 	if err != nil {
 		c.UI.Error(err.Error())
 	}
-	ca, err := connect.GenerateCA(s, sn, nil)
+	ca, err := connect.GenerateCA(s, sn, c.days, nil)
 	if err != nil {
 		c.UI.Error(err.Error())
 	}

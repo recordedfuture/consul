@@ -68,20 +68,20 @@ func TestGenerateCA(t *testing.T) {
 
 	// test what happens without key
 	s = &TestSigner{}
-	ca, err := GenerateCA(s, sn, nil)
+	ca, err := GenerateCA(s, sn, 0, nil)
 	require.Error(t, err)
 	require.Empty(t, ca)
 
 	// test what happens with wrong key
 	s = &TestSigner{public: &rsa.PublicKey{}}
-	ca, err = GenerateCA(s, sn, nil)
+	ca, err = GenerateCA(s, sn, 0, nil)
 	require.Error(t, err)
 	require.Empty(t, ca)
 
 	// test what happens with correct key
 	s, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.Nil(t, err)
-	ca, err = GenerateCA(s, sn, nil)
+	ca, err = GenerateCA(s, sn, 365, nil)
 	require.Nil(t, err)
 	require.NotEmpty(t, ca)
 
@@ -93,7 +93,7 @@ func TestGenerateCA(t *testing.T) {
 
 	// format so that we don't take anything smaller than second into account.
 	require.Equal(t, cert.NotBefore.Format(time.ANSIC), time.Now().UTC().Format(time.ANSIC))
-	require.Equal(t, cert.NotAfter.Format(time.ANSIC), time.Now().AddDate(10, 0, 0).UTC().Format(time.ANSIC))
+	require.Equal(t, cert.NotAfter.Format(time.ANSIC), time.Now().AddDate(1, 0, 0).UTC().Format(time.ANSIC))
 
 	require.Equal(t, x509.KeyUsageCertSign|x509.KeyUsageCRLSign, cert.KeyUsage)
 }
@@ -104,7 +104,7 @@ func TestGenerateCert(t *testing.T) {
 	require.Nil(t, err)
 	signer, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.Nil(t, err)
-	ca, err := GenerateCA(signer, sn, nil)
+	ca, err := GenerateCA(signer, sn, 365, nil)
 	require.Nil(t, err)
 
 	sn, err = GenerateSerialNumber()
@@ -112,14 +112,15 @@ func TestGenerateCert(t *testing.T) {
 	DNSNames := []string{"server.dc1.consul"}
 	IPAddresses := []net.IP{net.ParseIP("123.234.243.213")}
 	extKeyUsage := []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
-	certificate, pk, err := GenerateCert(signer, ca, sn, DNSNames, IPAddresses, extKeyUsage)
+	name := "Cert Name"
+	certificate, pk, err := GenerateCert(signer, ca, sn, name, 365, DNSNames, IPAddresses, extKeyUsage)
 	require.Nil(t, err)
 	require.NotEmpty(t, certificate)
 	require.NotEmpty(t, pk)
 
 	cert, err := ParseCert(certificate)
 	require.Nil(t, err)
-	require.Equal(t, fmt.Sprintf("Consul Certificate %d", sn), cert.Subject.CommonName)
+	require.Equal(t, name, cert.Subject.CommonName)
 	require.Equal(t, true, cert.BasicConstraintsValid)
 	signee, err := ParseSigner(pk)
 	require.Nil(t, err)
@@ -134,7 +135,7 @@ func TestGenerateCert(t *testing.T) {
 
 	// format so that we don't take anything smaller than second into account.
 	require.Equal(t, cert.NotBefore.Format(time.ANSIC), time.Now().UTC().Format(time.ANSIC))
-	require.Equal(t, cert.NotAfter.Format(time.ANSIC), time.Now().Add(time.Hour*24*365).UTC().Format(time.ANSIC))
+	require.Equal(t, cert.NotAfter.Format(time.ANSIC), time.Now().AddDate(1, 0, 0).UTC().Format(time.ANSIC))
 
 	require.Equal(t, x509.KeyUsageDigitalSignature|x509.KeyUsageKeyEncipherment, cert.KeyUsage)
 	require.Equal(t, extKeyUsage, cert.ExtKeyUsage)

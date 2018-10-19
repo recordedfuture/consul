@@ -66,6 +66,10 @@ datacenter or domain is different please use the appropriate flags:
 
 ```shell
 $ consul tls cert create -server
+==> WARNING: Server Certificates grants authority to become a
+    server and access all state in the cluster including root keys
+    and all ACL tokens. Do not distribute them to production hosts
+    that are not server nodes. Store them as securely as CA keys.
 ==> Using consul-ca.pem and consul-ca-key.pem
 ==> Saved consul-server-dc1-0.pem
 ==> Saved consul-server-dc1-0-key.pem
@@ -225,6 +229,83 @@ and client certificates allows tools like `curl` to be able to communicate with
 Consul's HTTPS API when run on the same host. Other SANs may be added during
 server/client certificates creation with `-additional-dnsname` to allow remote
 HTTPS requests from other hosts.
+
+## Configure the Consul UI for HTTPS
+
+If your servers and clients are configured now like above, you won't be able to access the builtin UI anymore. We recommend that you pick a Consul agent you want to run the UI on, say one of the servers and follow the instructions to get the UI up and running again.
+
+### Step 1: Which interface to bind to?
+
+Depending on your setup you might need to change to which interface you are
+binding because thats `127.0.0.1` by default for the UI. Either via the
+[`addresses.https`](https://www.consul.io/docs/agent/options.html#https) or
+[client_addr](https://www.consul.io/docs/agent/options.html#client_addr) option
+which also impacts the DNS server. The Consul UI is unproteced which means you
+need to put some auth in front of it if you want to make it publicly available!
+
+Binding to `0.0.0.0` should work:
+
+```json
+{
+  "ui": true,
+  "client_addr": "0.0.0.0"
+}
+```
+
+### Step 2: verify_incoming_rpc
+
+Your Consul agent will deny the connection straight away because `verify_incoming` is enabled.
+
+> If set to true, Consul requires that all incoming connections make use of TLS and that the client provides a certificate signed by a Certificate Authority from the ca_file or ca_path. This applies to both server RPC and to the HTTPS API.
+
+Since the browser doesn't present a certificate signed by our CA, you cannot access the UI. If you `curl` your HTTPS UI the following happens:
+
+```
+$ curl https://localhost:8501/ui/ -k -I
+curl: (35) error:14094412:SSL routines:SSL3_READ_BYTES:sslv3 alert bad certificate
+```
+
+This is the Consul HTTPS server denying your connection because you are not presenting a client certificate signed by your Consul CA.
+There is a combination of options however that allows us to keep using `verify_incoming` for RPC, but not for HTTPS:
+
+```json
+{
+  "verify_incoming": false,
+  "verify_incoming_rpc": true,
+  "ui": true,
+  "ports": {
+    "http": -1,
+    "https": 8501
+  }
+}
+```
+
+With the new configuration, it should work:
+
+```
+$ curl https://localhost:8501/ui/ -k -I
+HTTP/2 200
+...
+```
+
+### Step 3: Subject Alternative Name
+
+This step will take care of setting up the domain/ip you want to use to access the Consul UI. Unless thats `localhost` or `127.0.0.1` you will have to go through that because it won't work otherwise:
+
+```
+$ curl https://myconsului.com:8501/ui/ --resolve 'myconsului.com:8501:127.0.0.1' --cacert consul-ca.pem
+curl: (51) SSL: no alternative certificate subject name matches target host name 'myconsului.com'
+...
+```
+
+The above command simulates a request a browser is making when you are trying to use the domain `myconsului.com` to access your UI. This time we do validate the certificates because the browser is doing the same and we also pass the Consul CA. The problem this time is that your domain is not in `Subject Alternative Name` of the Certificate. We can fix that by creating a certificate that has our domain:
+
+```
+$ consul tls cert create -server -additional-dnsnames myconsului.com
+```
+
+
+### Step 4: Trust the Consul CA
 
 ## Summary
 

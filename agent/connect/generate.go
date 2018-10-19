@@ -48,7 +48,7 @@ func GeneratePrivateKey() (crypto.Signer, string, error) {
 }
 
 // GenerateCA generates a new CA
-func GenerateCA(signer crypto.Signer, sn *big.Int, uris []*url.URL) (string, error) {
+func GenerateCA(signer crypto.Signer, sn *big.Int, days int, uris []*url.URL) (string, error) {
 	keyID, err := KeyId(signer.Public())
 	if err != nil {
 		return "", err
@@ -72,7 +72,7 @@ func GenerateCA(signer crypto.Signer, sn *big.Int, uris []*url.URL) (string, err
 		BasicConstraintsValid: true,
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		IsCA:                  true,
-		NotAfter:              time.Now().AddDate(10, 0, 0),
+		NotAfter:              time.Now().AddDate(0, 0, days),
 		NotBefore:             time.Now(),
 		AuthorityKeyId:        keyID,
 		SubjectKeyId:          keyID,
@@ -94,7 +94,7 @@ func GenerateCA(signer crypto.Signer, sn *big.Int, uris []*url.URL) (string, err
 }
 
 // GenerateCert generates a new certificate
-func GenerateCert(signer crypto.Signer, ca string, sn *big.Int, DNSNames []string, IPAddresses []net.IP, extKeyUsage []x509.ExtKeyUsage) (string, string, error) {
+func GenerateCert(signer crypto.Signer, ca string, sn *big.Int, name string, days int, DNSNames []string, IPAddresses []net.IP, extKeyUsage []x509.ExtKeyUsage) (string, string, error) {
 	parent, err := ParseCert(ca)
 	if err != nil {
 		return "", "", err
@@ -104,8 +104,6 @@ func GenerateCert(signer crypto.Signer, ca string, sn *big.Int, DNSNames []strin
 	if err != nil {
 		return "", "", err
 	}
-
-	name := fmt.Sprintf("Consul Certificate %d", sn)
 
 	keyID, err := KeyId(signee.Public())
 	if err != nil {
@@ -119,7 +117,7 @@ func GenerateCert(signer crypto.Signer, ca string, sn *big.Int, DNSNames []strin
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:           extKeyUsage,
 		IsCA:                  false,
-		NotAfter:              time.Now().AddDate(1, 0, 0),
+		NotAfter:              time.Now().AddDate(0, 0, days),
 		NotBefore:             time.Now(),
 		SubjectKeyId:          keyID,
 		DNSNames:              DNSNames,

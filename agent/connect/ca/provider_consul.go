@@ -617,5 +617,5 @@ func (c *ConsulProvider) generateCA(signer crypto.Signer, sn *big.Int) (string, 
 	// The URI (SPIFFE compatible) for the cert
 	id := connect.SpiffeIDSigningForCluster(config)
 
-	return connect.GenerateCA(signer, sn, []*url.URL{id.URI()})
+	return connect.GenerateCA(signer, sn, 3650, []*url.URL{id.URI()})
 }

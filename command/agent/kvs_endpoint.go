@@ -15,7 +15,8 @@ const (
 	// maxKVSize is used to limit the maximum payload length
 	// of a KV entry. If it exceeds this amount, the client is
 	// likely abusing the KV store.
-	maxKVSize = 512 * 1024
+	//maxKVSize = 512 * 1024
+	maxKVSize = 1024 * 1024
 )
 
 func (s *HTTPServer) KVSEndpoint(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
